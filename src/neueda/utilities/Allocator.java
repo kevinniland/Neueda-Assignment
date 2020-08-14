@@ -31,7 +31,7 @@ public class Allocator {
 	private List<Traveller> travellerList = new ArrayList<>();
 	private List<Traveller> noWindowPrefList = new ArrayList<>();
 	private List<Seat> seatsPerRow;
-	private Map<Integer, PlaneRow> seatMap, seats = new HashMap<>();
+	private Map<Integer, PlaneRow> seatMap = new HashMap<>();
 	private boolean isWindowSeat = false;
 	private String line;
 	private String file;
@@ -57,7 +57,7 @@ public class Allocator {
 			bufferedReader = new BufferedReader(new FileReader(file));
 			
 			while ((line = bufferedReader.readLine()) != null) {
-				setSeats(run());
+				run(line);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -65,11 +65,11 @@ public class Allocator {
 	}
 
 	public Map<Integer, PlaneRow> getSeats() {
-		return seats;
+		return seatMap;
 	}
 
 	public void setSeats(Map<Integer, PlaneRow> seats) {
-		this.seats = seats;
+		this.seatMap = seats;
 	}
 
 	/**
@@ -79,7 +79,7 @@ public class Allocator {
 	 * @return seatMap - Seat map containing information on which seat each
 	 *         traveller has been allocated
 	 */
-	public Map<Integer, PlaneRow> run() {
+	public Map<Integer, PlaneRow> run(String line) {
 //		try {
 //			bufferedReader = new BufferedReader(new FileReader(file));
 
