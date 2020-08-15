@@ -103,8 +103,18 @@ public class Traveller {
 		return travellersList;
 	}
 
-	// Get total travellers
+	/**
+	 * Get total travellers
+	 * 
+	 * @return the size of the traveller list if the traveller list isn't null. Otherwise return 0
+	 */
 	public int getTotalTravellers() {
-		return travellersList != null ? travellersList.size() : 0;
+		if (travellersList != null) {
+			return travellersList.size();
+		} else {
+			return 0;
+		}
+		
+//		return travellersList != null ? travellersList.size() : 0;
 	}
 }

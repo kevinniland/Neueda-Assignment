@@ -1,10 +1,6 @@
 package neueda.main;
 
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import neueda.helpers.PlaneRow;
-import neueda.utilities.Allocator;
+import neueda.ui.Menu;
 
 /**
  * @author Kevin Niland
@@ -13,32 +9,13 @@ import neueda.utilities.Allocator;
  *
  */
 public class Runner {
-	private static Map<Integer, PlaneRow> seatMap;
-	private static final String FILEPATH = "input.txt";
-	private static String allocatedSeats;
-	private static StringBuilder stringBuilder = new StringBuilder();
-	
 	/**
-	 * Entry point into application
+	 * Entry point into application. Calls menu() from Menu.java
 	 * 
 	 * @param args
+	 * @throws Exception
 	 */
-	public static void main(String[] args) {
-		try {
-			seatMap = new Allocator(FILEPATH).getSeats();
-
-			if (seatMap != null) {
-				allocatedSeats = seatMap.values().stream().map(s -> s.toString())
-						.collect(Collectors.joining(System.lineSeparator()));
-
-				stringBuilder.append(allocatedSeats).append(System.lineSeparator())
-						.append(new Allocator().calculateSatisfaction() + "%").toString();
-				System.out.print(stringBuilder);
-			} else {
-				System.out.print("ERROR: Unable to create a seat map");
-			}
-		} catch (Exception exception) {
-			exception.printStackTrace();
-		}
+	public static void main(String[] args) throws Exception {
+		new Menu().menu();
 	}
 }

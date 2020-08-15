@@ -25,12 +25,12 @@ public class PlaneRow {
 	 * @param totalSeats - Total number of seats
 	 * @param availableSeats - Available seats on the plane
 	 */
-	public PlaneRow(List<Seat> seatList, int rowIndex, int totalSeats, int availableSeats) {
+	public PlaneRow(List<Seat> seatList, int rowIndex, int availableSeats, int totalSeats) {
 		this.seatList = seatList;
 		this.rowIndex = rowIndex;
 		this.remainingSeats = totalSeats;
-		this.totalSeats = totalSeats;
 		this.availableSeats = availableSeats;
+		this.totalSeats = totalSeats;
 	}
 
 	// Get seat list

@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import neueda.helpers.PlaneRow;
 import neueda.helpers.Seat;
 import neueda.helpers.Traveller;
+import neueda.interfaces.Allocatable;
 
 /**
  * @author Kevin Niland
@@ -21,20 +22,23 @@ import neueda.helpers.Traveller;
  * 
  *          Allocator.java - Allocates travellers to a seat based on several
  *          factors such as seat preference, group size, etc.
+ * 
+ *          This classes utilises Streams, as defined in Java 8
+ * 
+ *          Reference: https://stackify.com/streams-guide-java-8/
  *
  */
-public class Allocator {
+public class Allocator implements Allocatable {
 	private Traveller traveller;
 	private Seat seatLeft, seatRight;
 	private BufferedReader bufferedReader;
-	private List<Traveller> travellers;
-	private List<Traveller> travellerList = new ArrayList<>();
+	private List<Traveller> windowPrefList = new ArrayList<>();
 	private List<Traveller> noWindowPrefList = new ArrayList<>();
 	private List<Seat> seatsPerRow;
+	private List<List<Seat>> result;
 	private Map<Integer, PlaneRow> seatMap = new HashMap<>();
 	private boolean isWindowSeat = false;
-	private String line;
-	private String file;
+	private String line, file;
 	private String[] fileArray;
 	private int availableSeats, i, j, emptyCounter, numSeatsPerRow, numRows, remainingCounter, leftCounter,
 			rightCounter;
@@ -45,45 +49,42 @@ public class Allocator {
 	private int seatRowIndex = -1;
 
 	public Allocator() {
-		
+
 	}
-	
+
+	/**
+	 * Constructor
+	 * 
+	 * @param file - Input file
+	 */
 	public Allocator(String file) {
 		this.file = file;
 	}
-	
+
+	/**
+	 * Read in input file and pass it off to process()
+	 */
+	@Override
 	public void parse() {
 		try {
 			bufferedReader = new BufferedReader(new FileReader(file));
-			
+
 			while ((line = bufferedReader.readLine()) != null) {
-				run(line);
+				process(line);
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (IOException ioException) {
+			ioException.printStackTrace();
 		}
-	}
-
-	public Map<Integer, PlaneRow> getSeats() {
-		return seatMap;
-	}
-
-	public void setSeats(Map<Integer, PlaneRow> seats) {
-		this.seatMap = seats;
 	}
 
 	/**
 	 * Read in input file and allocate seats
 	 * 
-	 * @param file - Input file
 	 * @return seatMap - Seat map containing information on which seat each
 	 *         traveller has been allocated
 	 */
-	public Map<Integer, PlaneRow> run(String line) {
-//		try {
-//			bufferedReader = new BufferedReader(new FileReader(file));
-
-//			while ((line = bufferedReader.readLine()) != null) {
+	@Override
+	public Map<Integer, PlaneRow> process(String line) {
 		fileArray = line.split("[\\s+]");
 
 		/*
@@ -97,54 +98,67 @@ public class Allocator {
 			try {
 				numOfTravellers += fileArray.length;
 
-				if (fileArray.length >= 1) {
-					travellers = Arrays.stream(fileArray).map(String::trim).filter(s -> !s.isEmpty())
-							.map(s -> new Traveller().createPassenger(s)).collect(Collectors.toList());
+				// https://stackoverflow.com/a/36873265/8721358
+				traveller = new Traveller(Arrays.stream(fileArray).map(String::trim).filter(s -> !s.isEmpty())
+						.map(s -> new Traveller().createPassenger(s)).collect(Collectors.toList()));
 
-					traveller = new Traveller(travellers);
+				if (traveller.getTravellersList() != null) {
+					totalPassenger = traveller.getTravellersList().size();
+				} else {
+					totalPassenger = 0;
+				}
 
-					totalPassenger = (traveller.getTravellersList() != null ? traveller.getTravellersList().size() : 0);
-
-					for (PlaneRow seatRow : seatMap.values()) {
-						if (seatRow.getRemainingSeats() >= traveller.getTotalTravellers()) {
-							if ((traveller.getTravellersList().stream().filter(p -> p.isSeatPreference()).count() > 0
-									? true
-									: false) && seatRow.getAvailableSeats() > 0) {
-								seatRowIndex = seatRow.getRowIndex();
-								break;
-							} else if (!(traveller.getTravellersList().stream().filter(p -> p.isSeatPreference())
-									.count() > 0 ? true : false)) {
-								seatRowIndex = seatRow.getRowIndex();
-								break;
-							}
+				for (PlaneRow planeRow : seatMap.values()) {
+					if (planeRow.getRemainingSeats() >= traveller.getTotalTravellers()) {
+						if ((traveller.getTravellersList().stream().filter(p -> p.isSeatPreference()).count() > 0 ? true
+								: false) && planeRow.getAvailableSeats() > 0) {
+							seatRowIndex = planeRow.getRowIndex();
+							break;
+						} else {
+							seatRowIndex = planeRow.getRowIndex();
+							break;
 						}
 					}
+				}
 
-					if (seatRowIndex >= 0) {
-						allocateGroups(traveller, seatRowIndex);
-					} else if (availableSeats >= totalPassenger) {
-						allocateIndividuals(traveller);
-					} else {
-						System.out.println("ERROR: No available seats remaining");
+				if (seatRowIndex >= 0) {
+					allocateGroups(seatRowIndex);
+				} else if (availableSeats >= totalPassenger) {
+					allocateIndividuals();
+				} else {
+					System.out.println("ERROR: No available seats remaining");
 
-						return null;
-					}
+					return null;
 				}
 			} catch (IllegalArgumentException illegalArgumentException) {
-				System.out.println("ERROR: Line " + line + " contains an error");
 				illegalArgumentException.printStackTrace();
 			}
 		}
 
+		// Increment the line number of the file
 		lineNum++;
-//			}
 
 		return seatMap;
-//		} catch (IOException e) {
-//			System.out.println("ERROR: Unable to open file");
-//		}
+	}
 
-//		return seatMap;
+	/**
+	 * Call parse() and return the seat map
+	 * 
+	 * @return seat map
+	 */
+	public Map<Integer, PlaneRow> getSeatMap() {
+		parse();
+
+		return seatMap;
+	}
+
+	/**
+	 * Set seat map
+	 * 
+	 * @param seatMap
+	 */
+	public void setSeatMap(Map<Integer, PlaneRow> seatMap) {
+		this.seatMap = seatMap;
 	}
 
 	/**
@@ -153,19 +167,17 @@ public class Allocator {
 	 * @param numRows        - Number of the rows in the plane
 	 * @param numSeatsPerRow - Number of seats per row
 	 */
-	private void initialise(int numRows, int numSeatsPerRow) {
+	@Override
+	public void initialise(int numRows, int numSeatsPerRow) {
 		for (i = 0; i < numRows; i++) {
 			seatsPerRow = new ArrayList<>();
 
 			for (j = 0; j < numSeatsPerRow; j++) {
-				if (j == 0 || j == numSeatsPerRow - 1) {
-					isWindowSeat = true;
-				}
-
+				isWindowSeat = true;
 				seatsPerRow.add(new Seat(isWindowSeat, i, j));
 			}
 
-			seatMap.put(i, new PlaneRow(seatsPerRow, i, numSeatsPerRow, 2));
+			seatMap.put(i, new PlaneRow(seatsPerRow, i, 2, numSeatsPerRow));
 		}
 	}
 
@@ -175,7 +187,8 @@ public class Allocator {
 	 * @param dimensions - The dimensions of the plane. The dimensions of the plane
 	 *                   are determined by the first line of the input file
 	 */
-	private void createMapping(String[] dimensions) {
+	@Override
+	public void createMapping(String[] dimensions) {
 		if (dimensions.length >= 2) {
 			try {
 				numSeatsPerRow = Integer.parseInt(dimensions[0]);
@@ -195,23 +208,6 @@ public class Allocator {
 		} else {
 			System.out.println("ERROR: Number of rows and seats can't be defined");
 		}
-
-//		try {
-//			numSeatsPerRow = Integer.parseInt(dimensions[0]);
-//			numRows = Integer.parseInt(dimensions[1]);
-//
-//			availableSeats = numSeatsPerRow * numRows;
-//
-//			if (availableSeats == 0) {
-//				System.out.println("ERROR: No data available for number of plane seats");
-//				return;
-//			}
-//
-//			initialise(numRows, numSeatsPerRow);
-//		} catch (NumberFormatException numberFormatException) {
-//			System.out.println("ERROR: Dimensions provided are not valid");
-//			numberFormatException.printStackTrace();
-//		}
 	}
 
 	/**
@@ -219,40 +215,45 @@ public class Allocator {
 	 * 
 	 * @param trav
 	 */
-	private void allocateIndividuals(Traveller trav) {
+	@Override
+	public void allocateIndividuals() {
 		if (traveller.getTravellersList() != null
 				&& (traveller.getTravellersList().stream().filter(p -> p.isSeatPreference()).count() > 0 ? true
 						: false)) {
+			/**
+			 * For each traveller in the traveller list, check if the traveller has a seat
+			 * preference. If they do, add them to the window preference list. If not, add
+			 * them to the no window preference list
+			 */
 			for (Traveller traveller : traveller.getTravellersList()) {
+				/**
+				 * If the traveller has a seat preference, add them to the traveller list. Else,
+				 * add the traveller to the no preference list
+				 */
 				if (traveller.isSeatPreference()) {
-					travellerList.add(traveller);
+					windowPrefList.add(traveller);
 				} else {
 					noWindowPrefList.add(traveller);
 				}
 			}
 
-			travellerList.addAll(noWindowPrefList);
+			windowPrefList.addAll(noWindowPrefList);
 		} else {
-			travellerList = traveller.getTravellersList();
-		}
-
-		for (PlaneRow planeRow : seatMap.values()) {
-			for (Seat seat : planeRow.getSeatList()) {
-				if (seat.getTraveller() == null) {
-					counter++;
-				}
-			}
+			windowPrefList = traveller.getTravellersList();
 		}
 	}
 
 	/**
 	 * Allocates groups to a row of seats
 	 * 
+	 * Find a way to refactor if statement
+	 * 
 	 * @param seatRowIndex - SeatRow index which have capacity for the passengers
 	 *                     from passenger group
 	 * @param trav         - The group of passengers
 	 */
-	private void allocateGroups(Traveller trav, int rowIndex) {
+	@Override
+	public void allocateGroups(int rowIndex) {
 		List<Traveller> groupList = new ArrayList<>();
 		List<Traveller> nonPreferenceList = new ArrayList<>();
 
@@ -281,6 +282,12 @@ public class Allocator {
 		seatLeft = seatList.get(0);
 		seatRight = seatList.get(seatMap.get(rowIndex).getTotalSeats() - 1);
 
+		/**
+		 * For each traveller in the group list, check if the traveller has a seat
+		 * preference. If the left most seat is available, assign a traveller to that
+		 * seat. Else if the right most seat is available, assign a traveller to that
+		 * seat
+		 */
 		for (Traveller traveller : groupList) {
 			if (traveller.isSeatPreference()) {
 				if (seatLeft.getTraveller() == null) {
@@ -293,6 +300,7 @@ public class Allocator {
 					leftCounter = seatMap.get(rowIndex).getAvailableSeats();
 					seatMap.get(rowIndex).setAvailableSeats((leftCounter--));
 
+					// Break one iteration and continue with the next iteration
 					continue;
 				} else if (seatRight.getTraveller() == null) {
 					seatList.get(seatMap.get(rowIndex).getTotalSeats() - 1).setTraveller(traveller);
@@ -321,11 +329,12 @@ public class Allocator {
 	 * travellers with seat preferences have been correctly allocated and whether or
 	 * not groups of travellers have been successfully allocated to a row of seats
 	 * 
-	 * @return
+	 * @return the satisfaction result
 	 */
+	@Override
 	public int calculateSatisfaction() {
-		List<List<Seat>> result = seatMap.values().stream().filter(e -> e.getSeatList().size() != 0)
-				.map(e -> e.getSeatList()).collect(Collectors.toList());
+		result = seatMap.values().stream().filter(e -> e.getSeatList().size() != 0).map(e -> e.getSeatList())
+				.collect(Collectors.toList());
 		result.forEach(a -> {
 			a.forEach(m -> {
 				if (m.getTraveller() == null)
